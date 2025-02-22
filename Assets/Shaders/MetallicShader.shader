@@ -7,6 +7,7 @@ Shader "Custom/MetallicWorkflow" {
 
         _DetailTex ("Detail", 2D) = "gray" {}
     }
+
     
     SubShader{
     Pass {
