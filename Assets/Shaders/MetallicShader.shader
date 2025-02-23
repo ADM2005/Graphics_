@@ -1,11 +1,14 @@
 Shader "Custom/MetallicWorkflow" {
     Properties {
         _MainTex ("Albedo", 2D) = "white" {}
+        _DetailTex ("Detail", 2D) = "gray" {}
+
+        [NoScaleOffset] _HeightMap ("Heights", 2D) = "gray" {}
 
         [Gamma] _Metallic ("Metallic", Range(0,1)) = 0.5
         _Smoothness ("Smoothness", Range(0,1)) = 0.1
 
-        _DetailTex ("Detail", 2D) = "gray" {}
+
     }
 
 

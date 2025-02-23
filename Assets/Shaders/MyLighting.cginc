@@ -10,7 +10,8 @@
 sampler2D _MainTex, _DetailTex;
 float4 _MainTex_ST, _DetailTex_ST;
 
-sampler2D _NormalTex;
+sampler2D _HeightMap;
+float4 _HeightMap_TexelSize; // x contains width, y contains height
 
 float _Metallic;
 float _Smoothness;
@@ -94,10 +95,23 @@ UnityLight CreateLight(Interpolators i){
     return light;
 }
 
-float4 FragmentProgram(Interpolators i) : SV_TARGET {
+void initializeFragmentNormal(inout Interpolators i){
+
+    float2 du = float2(_HeightMap_TexelSize.x * 0.5, 0);
+    float u1 = tex2D(_HeightMap, i.uv - du);
+    float u2 = tex2D(_HeightMap, i.uv + du);
+
+    float2 dv = float2(0, _HeightMap_TexelSize.y * 0.5);
+    float v1 = tex2D(_HeightMap, i.uv - du);
+    float v2 = tex2D(_HeightMap, i.uv + du);
+
+    i.normal = float3(u1-u2, 1, v1-v2);
     i.normal = normalize(i.normal);
+}
+
+float4 FragmentProgram(Interpolators i) : SV_TARGET {
+    initializeFragmentNormal(i);
     float3 albedo = tex2D(_MainTex, i.uv).rgb;
-    albedo *= tex2D(_DetailTex, i.uvDetail).rgb *2;
     float3 viewDir = normalize(_WorldSpaceCameraPos - i.worldPos);
 
     float3 specularTint;
