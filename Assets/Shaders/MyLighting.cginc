@@ -1,8 +1,11 @@
+// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
 #if !defined(MY_LIGHTING_INCLUDED)
 #define MY_LIGHTING_INCLUDED
 
 #include "UnityCG.cginc"
 #include "UnityPBSLighting.cginc"
+#include "AutoLight.cginc"
 
 sampler2D _MainTex, _DetailTex;
 float4 _MainTex_ST, _DetailTex_ST;
@@ -19,6 +22,10 @@ struct Interpolators {
     float3 worldPos : TEXCOORD2;
 
     float2 uvDetail : TEXCOORD3;
+
+    #if defined(VERTEXLIGHT_ON)
+        float3 vertexLightColor : TEXCOORD4;
+    #endif
 };
 
 struct VertexData {
@@ -27,21 +34,60 @@ struct VertexData {
     float3 normal : NORMAL;
 };
 
+void ComputeVertexLightColor(inout Interpolators i) { 
+    #if defined(VERTEXLIGHT_ON)
+        float3 lightPos = float3(
+            unity_4LightPosX0.x, unity_4LightPosY0.x, unity_4LightPosZ0.x
+        );
+        // float3 lightVec = lightPos - i.worldPos;
+        // float3 lightDir = normalize(lightVec);
+        // float ndotl = DotClamped(i.normal, lightDir);
+        // float attenuation = 1/(1 + dot(lightVec, lightVec) * unity_4LightAtten0.x);
+
+        // i.vertexLightColor = unity_LightColor[0].rgb * ndotl * attenuation;
+        i.vertexLightColor = Shade4PointLights(unity_4LightPosX0, unity_4LightPosY0, unity_4LightPosZ0, 
+            unity_LightColor[0].rgb, unity_LightColor[1].rgb, unity_LightColor[2].rgb, unity_LightColor[3].rgb,unity_4LightAtten0 ,i.worldPos, i.normal
+        );
+    #endif
+}
+
 Interpolators VertexProgram(VertexData v){
     Interpolators i;
     i.position = UnityObjectToClipPos(v.position);
     i.normal = UnityObjectToWorldNormal(v.normal);
     i.uv = TRANSFORM_TEX(v.uv, _MainTex);
-    i.worldPos = UnityObjectToWorldDir(v.position);
+    i.worldPos = mul(unity_ObjectToWorld, v.position);
     i.uvDetail = TRANSFORM_TEX(v.uv, _DetailTex);
+    ComputeVertexLightColor(i);
     return i;
+}
+
+UnityIndirect CreateIndirectLight(Interpolators i){
+    UnityIndirect indirectLight;
+    indirectLight.diffuse = 0;
+    indirectLight.specular = 0;
+
+
+    #if defined(VERTEXLIGHT_ON)
+
+        indirectLight.diffuse = i.vertexLightColor;
+    #endif
+
+    return indirectLight;
 }
 
 UnityLight CreateLight(Interpolators i){
     UnityLight light;
-    light.color = _LightColor0;
-    light.dir = _WorldSpaceLightPos0;
-    light.ndotl = DotClamped(_WorldSpaceLightPos0, i.normal);
+    //light.dir = _WorldSpaceLightPos0;
+
+    #if defined(POINT) || defined(SPOT)
+        light.dir = normalize(_WorldSpaceLightPos0 - i.worldPos); 
+    #else
+        light.dir = _WorldSpaceLightPos0;
+    #endif
+    UNITY_LIGHT_ATTENUATION(attenuation, 0, i.worldPos);
+    light.color = _LightColor0.rgb * attenuation;
+    light.ndotl = DotClamped(i.normal, light.dir);
     return light;
 }
 
@@ -57,10 +103,6 @@ float4 FragmentProgram(Interpolators i) : SV_TARGET {
     albedo = DiffuseAndSpecularFromMetallic(
         albedo, _Metallic, specularTint, oneMinusReflectivity
     );
-    UnityIndirect indirect;
-    indirect.diffuse = 0.3;
-    indirect.specular = 0.0;
-
     return UNITY_BRDF_PBS(
         albedo,
         specularTint,
@@ -69,7 +111,7 @@ float4 FragmentProgram(Interpolators i) : SV_TARGET {
         i.normal,
         viewDir,
         CreateLight(i),
-        indirect
+        CreateIndirectLight(i)
     );
 
 }

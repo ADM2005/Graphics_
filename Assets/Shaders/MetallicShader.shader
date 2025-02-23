@@ -17,6 +17,8 @@ Shader "Custom/MetallicWorkflow" {
         CGPROGRAM
             #pragma target 3.0
 
+            #pragma multi_compile _ VERTEXLIGHT_ON
+
             #pragma vertex VertexProgram()
             #pragma fragment FragmentProgram()
 
@@ -35,9 +37,12 @@ Shader "Custom/MetallicWorkflow" {
         CGPROGRAM
             #pragma target 3.0
 
+            #pragma multi_compile DIRECTIONAL POINT SPOT DIRECTIONAL_COOKIE POINT_COOKIE
+
             #pragma vertex VertexProgram()
             #pragma fragment FragmentProgram()
 
+            
             #include "MyLighting.cginc"
         ENDCG
     }
