@@ -37,30 +37,26 @@ Interpolators VertexProgram(VertexData v){
     return i;
 }
 
+UnityLight CreateLight(Interpolators i){
+    UnityLight light;
+    light.color = _LightColor0;
+    light.dir = _WorldSpaceLightPos0;
+    light.ndotl = DotClamped(_WorldSpaceLightPos0, i.normal);
+    return light;
+}
+
 float4 FragmentProgram(Interpolators i) : SV_TARGET {
     i.normal = normalize(i.normal);
     float3 albedo = tex2D(_MainTex, i.uv).rgb;
     albedo *= tex2D(_DetailTex, i.uvDetail).rgb *2;
-    float3 lightDir = _WorldSpaceLightPos0; // This is the direction for directional lights
-    float3 lightColor = _LightColor0;
     float3 viewDir = normalize(_WorldSpaceCameraPos - i.worldPos);
 
-    //float3 specularTint = albedo * _Metallic;
-    //float oneMinusReflectivity = 1 - _Metallic;
-
-    //albedo *= oneMinusReflectivity;
     float3 specularTint;
     float oneMinusReflectivity;
 
     albedo = DiffuseAndSpecularFromMetallic(
         albedo, _Metallic, specularTint, oneMinusReflectivity
     );
-
-    UnityLight light;
-    light.color = lightColor;
-    light.dir = lightDir;
-    light.ndotl = DotClamped(lightDir, i.normal);
-
     UnityIndirect indirect;
     indirect.diffuse = 0.3;
     indirect.specular = 0.0;
@@ -72,7 +68,7 @@ float4 FragmentProgram(Interpolators i) : SV_TARGET {
         _Smoothness,
         i.normal,
         viewDir,
-        light,
+        CreateLight(i),
         indirect
     );
 
