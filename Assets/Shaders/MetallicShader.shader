@@ -22,6 +22,8 @@ Shader "Custom/MetallicWorkflow" {
             #pragma vertex VertexProgram()
             #pragma fragment FragmentProgram()
 
+            #define FORWARD_BASE_PASS
+
             #include "MyLighting.cginc"
         ENDCG
     }
