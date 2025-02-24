@@ -108,14 +108,13 @@ void initializeFragmentNormal(inout Interpolators i){
     i.normal = i.normal.xzy;
 
     float3 tangentSpaceNormal = BlendNormals(normal, detailNormal);
-    tangentSpaceNormal = tangentSpaceNormal.xzy;
 
     float3 binormal = cross(i.normal, i.tangent.xyz) * i.tangent.w * unity_WorldTransformParams.w;
 
     i.normal = normalize(
         tangentSpaceNormal.x * i.tangent + 
-        tangentSpaceNormal.y * i.normal +
-        tangentSpaceNormal.z * binormal
+        tangentSpaceNormal.y * binormal + 
+        tangentSpaceNormal.z * i.normal
     );
     //i.normal = normalize(i.normal);
 }
