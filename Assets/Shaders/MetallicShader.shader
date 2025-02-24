@@ -3,14 +3,15 @@ Shader "Custom/MetallicWorkflow" {
         _MainTex ("Albedo", 2D) = "white" {}
         _DetailTex ("Detail", 2D) = "gray" {}
 
-        [NoScaleOffset] _HeightMap ("Heights", 2D) = "gray" {}
+        [NoScaleOffset] [Normal] _Normal ("Normal", 2D) = "bump" {}
+        _BumpScale ("Bump Scale", Float) = 1
+
+        [NoScaleOffset] [Normal] _NormalDetail ("Normal Detail", 2D) = "bump" {}
+        _NormalDetailScale ("Normal Bump Scale", Float) = 1
 
         [Gamma] _Metallic ("Metallic", Range(0,1)) = 0.5
         _Smoothness ("Smoothness", Range(0,1)) = 0.1
-
-
     }
-
 
     SubShader{
     Pass {

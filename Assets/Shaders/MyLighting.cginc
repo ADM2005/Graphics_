@@ -10,20 +10,18 @@
 sampler2D _MainTex, _DetailTex;
 float4 _MainTex_ST, _DetailTex_ST;
 
-sampler2D _HeightMap;
-float4 _HeightMap_TexelSize; // x contains width, y contains height
+sampler2D _Normal, _NormalDetail;
+float _BumpScale, _NormalDetailScale;
 
 float _Metallic;
 float _Smoothness;
 
 struct Interpolators {
     float4 position: SV_POSITION;
-    float2 uv : TEXCOORD0;
+    float4 uv : TEXCOORD0;
     float3 normal : TEXCOORD1;
     float3 worldPos : TEXCOORD2;
-
-    float2 uvDetail : TEXCOORD3;
-
+    float4 tangent: TEXCOORD3;
     #if defined(VERTEXLIGHT_ON)
         float3 vertexLightColor : TEXCOORD4;
     #endif
@@ -33,6 +31,7 @@ struct VertexData {
     float4 position: POSITION;
     float2 uv: TEXCOORD0;
     float3 normal : NORMAL;
+    float4 tangent: TANGENT;
 };
 
 void ComputeVertexLightColor(inout Interpolators i) { 
@@ -56,9 +55,10 @@ Interpolators VertexProgram(VertexData v){
     Interpolators i;
     i.position = UnityObjectToClipPos(v.position);
     i.normal = UnityObjectToWorldNormal(v.normal);
-    i.uv = TRANSFORM_TEX(v.uv, _MainTex);
+    i.uv.xy = TRANSFORM_TEX(v.uv, _MainTex);
     i.worldPos = mul(unity_ObjectToWorld, v.position);
-    i.uvDetail = TRANSFORM_TEX(v.uv, _DetailTex);
+    i.uv.zw = TRANSFORM_TEX(v.uv, _DetailTex);
+    i.tangent = float4(UnityObjectToWorldDir(v.tangent.xyz), v.tangent.w);
     ComputeVertexLightColor(i);
     return i;
 }
@@ -96,22 +96,34 @@ UnityLight CreateLight(Interpolators i){
 }
 
 void initializeFragmentNormal(inout Interpolators i){
+    // i.normal.xy = tex2D(_Normal, i.uv).wy * 2 - 1;
+    // i.normal.xy *= _BumpScale;
 
-    float2 du = float2(_HeightMap_TexelSize.x * 0.5, 0);
-    float u1 = tex2D(_HeightMap, i.uv - du);
-    float u2 = tex2D(_HeightMap, i.uv + du);
+    
+    // i.normal.z = sqrt(1 - saturate(dot(i.normal.xy, i.normal.xy)));
+    float3 normal = UnpackScaleNormal(tex2D(_Normal, i.uv.xy), _BumpScale);
+    float3 detailNormal = UnpackScaleNormal(tex2D(_NormalDetail, i.uv.zw), _NormalDetailScale);
+    //i.normal = float3(normal.xy + detailNormal.xy, normal.z * detailNormal.z);
+    i.normal = BlendNormals(normal, detailNormal);
+    i.normal = i.normal.xzy;
 
-    float2 dv = float2(0, _HeightMap_TexelSize.y * 0.5);
-    float v1 = tex2D(_HeightMap, i.uv - du);
-    float v2 = tex2D(_HeightMap, i.uv + du);
+    float3 tangentSpaceNormal = BlendNormals(normal, detailNormal);
+    tangentSpaceNormal = tangentSpaceNormal.xzy;
 
-    i.normal = float3(u1-u2, 1, v1-v2);
-    i.normal = normalize(i.normal);
+    float3 binormal = cross(i.normal, i.tangent.xyz) * i.tangent.w * unity_WorldTransformParams.w;
+
+    i.normal = normalize(
+        tangentSpaceNormal.x * i.tangent + 
+        tangentSpaceNormal.y * i.normal +
+        tangentSpaceNormal.z * binormal
+    );
+    //i.normal = normalize(i.normal);
 }
 
 float4 FragmentProgram(Interpolators i) : SV_TARGET {
     initializeFragmentNormal(i);
-    float3 albedo = tex2D(_MainTex, i.uv).rgb;
+    float3 albedo = tex2D(_MainTex, i.uv.xy).rgb;
+    albedo *= tex2D(_DetailTex, i.uv.zw) * unity_ColorSpaceDouble;
     float3 viewDir = normalize(_WorldSpaceCameraPos - i.worldPos);
 
     float3 specularTint;
