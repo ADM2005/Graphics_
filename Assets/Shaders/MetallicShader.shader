@@ -13,6 +13,10 @@ Shader "Custom/MetallicWorkflow" {
         _Smoothness ("Smoothness", Range(0,1)) = 0.1
     }
 
+    CGINCLUDE
+        #define BINORMAL_PER_FRAGMENT
+    ENDCG
+
     SubShader{
     Pass {
         Tags {
