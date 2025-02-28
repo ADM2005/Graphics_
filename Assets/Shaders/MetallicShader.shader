@@ -49,7 +49,7 @@ Shader "Custom/MetallicWorkflow" {
             #pragma target 3.0
 
             //#pragma multi_compile DIRECTIONAL POINT SPOT DIRECTIONAL_COOKIE POINT_COOKIE
-            #pragma multi_compile_fwdadd
+            #pragma multi_compile_fwdadd_fullshadows
 
             #pragma vertex VertexProgram()
             #pragma fragment FragmentProgram()
