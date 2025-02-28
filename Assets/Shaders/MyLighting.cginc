@@ -17,7 +17,7 @@ float _Metallic;
 float _Smoothness;
 
 struct Interpolators {
-    float4 position: SV_POSITION;
+    float4 pos: SV_POSITION;
     float4 uv : TEXCOORD0;
     float3 normal : TEXCOORD1;
     float3 worldPos : TEXCOORD2;
@@ -31,13 +31,15 @@ struct Interpolators {
         float3 vertexLightColor : TEXCOORD5;
     #endif
 
-    #if defined(SHADOWS_SCREEN)
-        float4 shadowCoordinates : TEXCOORD6;
-    #endif
+    // #if defined(SHADOWS_SCREEN)
+    //     float4 shadowCoordinates : TEXCOORD6;
+    // #endif
+
+    SHADOW_COORDS(6)
 };
 
 struct VertexData {
-    float4 position: POSITION;
+    float4 vertex: POSITION;
     float2 uv: TEXCOORD0;
     float3 normal : NORMAL;
     float4 tangent: TANGENT;
@@ -66,10 +68,10 @@ float3 CreateBinormal(float3 normal, float3 tangent, float binormalSign){
 
 Interpolators VertexProgram(VertexData v){
     Interpolators i;
-    i.position = UnityObjectToClipPos(v.position);
+    i.pos = UnityObjectToClipPos(v.vertex);
     i.normal = UnityObjectToWorldNormal(v.normal);
     i.uv.xy = TRANSFORM_TEX(v.uv, _MainTex);
-    i.worldPos = mul(unity_ObjectToWorld, v.position);
+    i.worldPos = mul(unity_ObjectToWorld, v.vertex);
     i.uv.zw = TRANSFORM_TEX(v.uv, _DetailTex);
     #if defined(BINORMAL_PER_FRAGMENT)
         i.tangent = float4(UnityObjectToWorldDir(v.tangent.xyz), v.tangent.w);
@@ -78,12 +80,14 @@ Interpolators VertexProgram(VertexData v){
         i.binormal = CreateBinormal(i.normal, i.tangent, v.tangent.w);
     #endif
 
-    #if defined(SHADOWS_SCREEN)
-        // Convert clip space to screen space
-        // i.shadowCoordinates.xy = (float2(i.position.x, -i.position.y) + i.position.w) * 0.5;
-        // i.shadowCoordinates.zw = i.position.zw;
-        i.shadowCoordinates = ComputeScreenPos(i.position);
-    #endif
+    // #if defined(SHADOWS_SCREEN)
+    //     // Convert clip space to screen space
+    //     // i.shadowCoordinates.xy = (float2(i.position.x, -i.position.y) + i.position.w) * 0.5;
+    //     // i.shadowCoordinates.zw = i.position.zw;
+    //     i.shadowCoordinates = ComputeScreenPos(i.position);
+    // #endif
+
+    TRANSFER_SHADOW(i);
     ComputeVertexLightColor(i);
     return i;
 }
@@ -116,11 +120,8 @@ UnityLight CreateLight(Interpolators i){
     #endif
 
 
-    #if defined(SHADOWS_SCREEN)
-        float attenuation = tex2D(_ShadowMapTexture, i.shadowCoordinates.xy);
-    #else
-        UNITY_LIGHT_ATTENUATION(attenuation, 0, i.worldPos);
-    #endif
+    UNITY_LIGHT_ATTENUATION(attenuation, i, i.worldPos);
+
     light.color = _LightColor0.rgb * attenuation;
     light.ndotl = DotClamped(i.normal, light.dir);
     return light;
@@ -155,9 +156,9 @@ void initializeFragmentNormal(inout Interpolators i){
 }
 
 float4 FragmentProgram(Interpolators i) : SV_TARGET {
-    #if defined(SHADOWS_SCREEN)
-        i.shadowCoordinates.xy /= i.shadowCoordinates.w;
-    #endif
+    // #if defined(SHADOWS_SCREEN)
+    //     i.shadowCoordinates.xy /= i.shadowCoordinates.w;
+    // #endif
     initializeFragmentNormal(i);
     float3 albedo = tex2D(_MainTex, i.uv.xy).rgb;
     albedo *= tex2D(_DetailTex, i.uv.zw) * unity_ColorSpaceDouble;
