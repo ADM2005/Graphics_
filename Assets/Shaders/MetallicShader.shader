@@ -26,6 +26,7 @@ Shader "Custom/MetallicWorkflow" {
             #pragma target 3.0
 
             #pragma multi_compile _ VERTEXLIGHT_ON
+            #pragma multi_compile _ SHADOWS_SCREEN
 
             #pragma vertex VertexProgram()
             #pragma fragment FragmentProgram()
@@ -55,6 +56,22 @@ Shader "Custom/MetallicWorkflow" {
 
             
             #include "MyLighting.cginc"
+        ENDCG
+    }
+
+    Pass {
+        Tags{
+            "LightMode" = "ShadowCaster"
+        }
+
+        CGPROGRAM
+            #pragma target 3.0
+
+
+            #pragma vertex ShadowVertexProgram()
+            #pragma fragment ShadowFragmentProgram()
+
+            #include "MyShadows.cginc"
         ENDCG
     }
 }
