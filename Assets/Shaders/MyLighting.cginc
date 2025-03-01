@@ -31,10 +31,6 @@ struct Interpolators {
         float3 vertexLightColor : TEXCOORD5;
     #endif
 
-    // #if defined(SHADOWS_SCREEN)
-    //     float4 shadowCoordinates : TEXCOORD6;
-    // #endif
-
     SHADOW_COORDS(6)
 };
 
@@ -47,15 +43,6 @@ struct VertexData {
 
 void ComputeVertexLightColor(inout Interpolators i) { 
     #if defined(VERTEXLIGHT_ON)
-        float3 lightPos = float3(
-            unity_4LightPosX0.x, unity_4LightPosY0.x, unity_4LightPosZ0.x
-        );
-        // float3 lightVec = lightPos - i.worldPos;
-        // float3 lightDir = normalize(lightVec);
-        // float ndotl = DotClamped(i.normal, lightDir);
-        // float attenuation = 1/(1 + dot(lightVec, lightVec) * unity_4LightAtten0.x);
-
-        // i.vertexLightColor = unity_LightColor[0].rgb * ndotl * attenuation;
         i.vertexLightColor = Shade4PointLights(unity_4LightPosX0, unity_4LightPosY0, unity_4LightPosZ0, 
             unity_LightColor[0].rgb, unity_LightColor[1].rgb, unity_LightColor[2].rgb, unity_LightColor[3].rgb,unity_4LightAtten0 ,i.worldPos, i.normal
         );
@@ -113,17 +100,17 @@ UnityLight CreateLight(Interpolators i){
     UnityLight light;
     //light.dir = _WorldSpaceLightPos0;
 
-    #if defined(POINT) || defined(SPOT)
-        light.dir = normalize(_WorldSpaceLightPos0 - i.worldPos); 
+    #if defined(POINT) || defined(SPOT) || defined(POINT_COOKIE)
+        light.dir = normalize(_WorldSpaceLightPos0.xyz - i.worldPos); 
     #else
-        light.dir = _WorldSpaceLightPos0;
+        light.dir = _WorldSpaceLightPos0.xyz;
     #endif
 
 
     UNITY_LIGHT_ATTENUATION(attenuation, i, i.worldPos);
-
     light.color = _LightColor0.rgb * attenuation;
     light.ndotl = DotClamped(i.normal, light.dir);
+
     return light;
 }
 
@@ -136,8 +123,7 @@ void initializeFragmentNormal(inout Interpolators i){
     float3 normal = UnpackScaleNormal(tex2D(_Normal, i.uv.xy), _BumpScale);
     float3 detailNormal = UnpackScaleNormal(tex2D(_NormalDetail, i.uv.zw), _NormalDetailScale);
     //i.normal = float3(normal.xy + detailNormal.xy, normal.z * detailNormal.z);
-    i.normal = BlendNormals(normal, detailNormal);
-    i.normal = i.normal.xzy;
+
 
     float3 tangentSpaceNormal = BlendNormals(normal, detailNormal);
 
@@ -156,9 +142,6 @@ void initializeFragmentNormal(inout Interpolators i){
 }
 
 float4 FragmentProgram(Interpolators i) : SV_TARGET {
-    // #if defined(SHADOWS_SCREEN)
-    //     i.shadowCoordinates.xy /= i.shadowCoordinates.w;
-    // #endif
     initializeFragmentNormal(i);
     float3 albedo = tex2D(_MainTex, i.uv.xy).rgb;
     albedo *= tex2D(_DetailTex, i.uv.zw) * unity_ColorSpaceDouble;
@@ -170,6 +153,7 @@ float4 FragmentProgram(Interpolators i) : SV_TARGET {
     albedo = DiffuseAndSpecularFromMetallic(
         albedo, _Metallic, specularTint, oneMinusReflectivity
     );
+
     return UNITY_BRDF_PBS(
         albedo,
         specularTint,
